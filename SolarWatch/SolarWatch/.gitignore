@@ -22,3 +22,4 @@ publish/
 
 # Ignore development-specific settings file
 appsettings.Development.json
+

@@ -1,0 +1,21 @@
+# Ignore build and publish folders
+bin/
+obj/
+publish/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider-specific files
+.idea/
+.vs/
+
+# Logs
+*.log
+
+# Database files
+*.mdf
+*.ldf

@@ -19,3 +19,6 @@ publish/
 # Database files
 *.mdf
 *.ldf
+
+# Ignore development-specific settings file
+SolarWatch/appsettings.Development.json

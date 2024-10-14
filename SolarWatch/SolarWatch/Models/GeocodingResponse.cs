@@ -1,11 +1,7 @@
-namespace SolarWatch.Models
-{
-    // Model representing the response from the Geocoding API
-    public class GeocodingResponse
-    {
-        // Latitude and Longitude properties to match the JSON structure
-        public double Lat { get; set; }
-        public double Lon { get; set; }
-    }
-}
+namespace SolarWatch.Models;
 
+public class GeocodingResponse
+{
+    public double Lat { get; }
+    public double Lon { get; }
+}

@@ -1,9 +1,10 @@
 namespace SolarWatch.Models
 {
-    // Model for the Sunrise/Sunset API response containing only sunrise and sunset times
+    // Model representing the sunrise and sunset times as strings
     public class SunriseSunsetResponse
     {
-        public DateTime Sunrise { get; set; } // Sunrise time in local city time
-        public DateTime Sunset { get; set; }  // Sunset time in local city time
+        // Sunrise and Sunset times as strings
+        public string Sunrise { get; set; }
+        public string Sunset { get; set; }
     }
 }

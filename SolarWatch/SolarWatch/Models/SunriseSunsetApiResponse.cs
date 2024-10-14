@@ -1,9 +1,12 @@
 namespace SolarWatch.Models
 {
-    // Wrapper model for the Sunrise/Sunset API response
+    // Wrapper model for the response from the Sunrise-Sunset API
     public class SunriseSunsetApiResponse
     {
-        public SunriseSunsetResponse? Results { get; set; } // Nested results containing sunrise and sunset
-        public string? Status { get; set; } // Status of the API call (e.g., "OK")
+        // 'Results' property maps to the inner JSON object with sunrise and sunset times
+        public SunriseSunsetResponse Results { get; set; }
+
+        // Status of the API response, should be "OK" for successful requests
+        public string Status { get; set; }
     }
 }

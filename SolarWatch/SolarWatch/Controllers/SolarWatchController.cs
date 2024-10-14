@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using SolarWatch.Models;
-using TimeZoneConverter;
-
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Threading.Tasks;
 
 namespace SolarWatch.Controllers
 {
@@ -12,179 +14,94 @@ namespace SolarWatch.Controllers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
 
-        // Constructor with dependency injection for IHttpClientFactory and IConfiguration
+        // Constructor that receives IHttpClientFactory and IConfiguration via dependency injection
         public SolarWatchController(IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
         }
-        
-        private HttpClient GetGeocodingClient()
-        {
-            return _httpClientFactory.CreateClient("GeocodingClient");
-        }
-        
-        private HttpClient GetSunsetClient()
-        {
-            return _httpClientFactory.CreateClient("SunsetClient");
-        }
 
-        // GET endpoint that retrieves sunrise and sunset times based on city and date
+        // GET endpoint to retrieve sunrise and sunset times for a given city and date
         [HttpGet("{city}/{date}")]
-        public async Task<IActionResult> GetSunriseSunset(string city, DateTime date)
+        public async Task<IActionResult> GetSunriseSunset(string city, string date)
         {
-            try
+            // Step 1: Get the coordinates (latitude and longitude) for the specified city
+            var coordinates = await GetCoordinatesAsync(city);
+
+            // If coordinates are null, return a BadRequest indicating the city was not found
+            if (coordinates == null)
             {
-                // Step 1: Retrieve latitude and longitude for the given city using the Geocoding API
-                var geocodingResult = await GetCoordinatesAsync(city);
-
-                // Log the latitude and longitude for debugging
-                Console.WriteLine($"City: {city}, Latitude: {geocodingResult?.Lat}, Longitude: {geocodingResult?.Lon}");
-
-                // If the geocoding API returns null, return a BadRequest with an error message
-                if (geocodingResult == null)
-                {
-                    return BadRequest(new { error = "City not found or misspelled. Please check the city name and try again." });
-                }
-
-                // Step 2: Retrieve sunrise and sunset times using latitude, longitude, and date
-                var sunriseSunsetResult = await GetSunriseSunsetTimesAsync(geocodingResult.Lat, geocodingResult.Lon, date);
-
-                // If the Sunrise/Sunset API returns null, indicate an issue with data retrieval
-                if (sunriseSunsetResult == null)
-                {
-                    return BadRequest(new { error = "Unable to retrieve sunrise and sunset data. Please try again later." });
-                }
-
-                // Return the sunrise and sunset times in the response as a JSON object
-                return Ok(sunriseSunsetResult);
+                return BadRequest("City not found or invalid.");
             }
-            catch (ArgumentException ex)
+
+            // Step 2: Get the sunrise and sunset times using the coordinates and date
+            var result = await GetSunriseSunsetTimesAsync(coordinates.Lat, coordinates.Lon, date);
+
+            // If result is null, return a BadRequest indicating data retrieval failure
+            if (result == null || result.Status != "OK")
             {
-                // Catch ArgumentException for invalid date formats and return a specific error message
-                return BadRequest(new { error = ex.Message });
+                return BadRequest("Unable to retrieve sunrise and sunset data.");
             }
+
+            // Step 3: Create a response model with the sunrise and sunset times
+            var response = new SunriseSunsetResult
+            {
+                Sunrise = result.Results.Sunrise,
+                Sunset = result.Results.Sunset
+            };
+
+            // Return the response as an OK (200) result
+            return Ok(response);
         }
 
-        // Helper method to call the Geocoding API and get latitude and longitude based on city name
-        private async Task<GeocodingResponse> GetCoordinatesAsync(string city)
+        // Helper method to get coordinates (latitude and longitude) for a given city
+        private async Task<GeocodingResponse?> GetCoordinatesAsync(string city)
         {
-            // Create a new HTTP client instance, Use the Geocoding client specifically for Geocoding API requests
-            var client = GetGeocodingClient();
+            // Create an HttpClient for the Geocoding API
+            var client = _httpClientFactory.CreateClient("GeocodingClient");
+
+            // Get the API key from configuration
             var apiKey = _configuration["GeocodingAPI:ApiKey"];
+
+            // Build the request URL with the city name and API key
             var url = $"{_configuration["GeocodingAPI:BaseUrl"]}?q={city}&limit=1&appid={apiKey}";
-            Console.WriteLine($"Geocoding API Request URL: {url}");
 
-            // Make an asynchronous GET request to the Geocoding API
+            // Send a GET request to the Geocoding API
             var response = await client.GetAsync(url);
-            var jsonResponse = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Geocoding API Raw Response: {jsonResponse}");
 
-            // If the API request is unsuccessful, return null
+            // If the response is not successful, return null
             if (!response.IsSuccessStatusCode) return null;
 
-            // Deserialize the JSON response into a list of GeocodingResponse objects
+            // Read and deserialize the JSON response into a list of GeocodingResponse objects
             var data = await response.Content.ReadFromJsonAsync<List<GeocodingResponse>>();
-            if (data == null || !data.Any())
-            {
-                Console.WriteLine("No results found for the city.");
-                return null;
-            }
-            var result = data?.FirstOrDefault(); // Return the first result or null if no results found
 
-            // Log the response for debugging purposes
-            Console.WriteLine($"Retrieved Latitude: {result?.Lat}, Longitude: {result?.Lon} for city: {city}");
-
-            return result;
+            // Return the first result or null if no results were found
+            return data?.FirstOrDefault();
         }
 
-        // Helper method to call the Sunrise/Sunset API and retrieve sunrise and sunset times
-        private async Task<SunriseSunsetResponse> GetSunriseSunsetTimesAsync(double latitude, double longitude, DateTime date)
-{
-    // Validate date format; throw an exception if the date is invalid
-    if (!DateTime.TryParse(date.ToString("yyyy-MM-dd"), out var validDate))
-    {
-        throw new ArgumentException("Invalid date format. Please use the format YYYY-MM-DD.");
-    }
+        // Helper method to get sunrise and sunset times for given coordinates and date
+        private async Task<SunriseSunsetApiResponse?> GetSunriseSunsetTimesAsync(double latitude, double longitude, string date)
+        {
+            // Create an HttpClient for the Sunrise-Sunset API
+            var client = _httpClientFactory.CreateClient("SunsetClient");
 
-    // Create a new HTTP client instance
-    var client = GetSunsetClient();
+            // Build the request URL with latitude, longitude, date, and formatted=0 to get ISO 8601 format
+            var url = $"{_configuration["SunriseSunsetAPI:BaseUrl"]}?lat={latitude}&lng={longitude}&date={date}&formatted=0";
 
-    // Format the date as a string to append to the API URL
-    var dateStr = date.ToString("yyyy-MM-dd");
+            // Send a GET request to the Sunrise-Sunset API
+            var response = await client.GetAsync(url);
 
-    // Construct the API URL with the latitude, longitude, and date for the specified city
-    var url = $"{_configuration["SunriseSunsetAPI:BaseUrl"]}?lat={latitude}&lng={longitude}&date={dateStr}&formatted=0";
+            // If the response is not successful, return null
+            if (!response.IsSuccessStatusCode) return null;
 
-    // Log the full request URL for debugging purposes
-    Console.WriteLine($"Requesting Sunrise/Sunset data from URL: {url}");
-
-    // Make an asynchronous GET request to the Sunrise/Sunset API
-    var response = await client.GetAsync(url);
-
-    // Check if the response indicates a successful request (status code 200)
-    if (!response.IsSuccessStatusCode) 
-    {
-        // Log and return null if the request was unsuccessful
-        Console.WriteLine("Failed to retrieve data from Sunrise/Sunset API.");
-        return null;
-    }
-
-    // Deserialize the JSON response into a SunriseSunsetApiResponse object
-    var result = await response.Content.ReadFromJsonAsync<SunriseSunsetApiResponse>();
-
-    // Check if the Results property of the response is null (indicating no data)
-    if (result?.Results == null) 
-    {
-        // Log and return null if no data was found
-        Console.WriteLine("No data found for Sunrise/Sunset times.");
-        return null;
-    }
-
-    // Parse the UTC sunrise and sunset times from the API response
-    var sunriseUtc = DateTime.SpecifyKind(result.Results.Sunrise, DateTimeKind.Utc);
-    var sunsetUtc = DateTime.SpecifyKind(result.Results.Sunset, DateTimeKind.Utc);
-    Console.WriteLine($"Raw Sunrise UTC: {sunriseUtc}, Raw Sunset UTC: {sunsetUtc}");
-    
-    var skipConversion = sunriseUtc.Hour > 2;
-    DateTime sunriseLocal, sunsetLocal;
-    if (skipConversion)
-    {
-        sunriseLocal = sunriseUtc;
-        sunsetLocal = sunsetUtc;
-    }
-    else
-    {
-        // Determine the IANA timezone ID based on the city's latitude and longitude
-        // Use TimeZoneLookup to find the IANA timezone from latitude and longitude
-        var tzIana = GeoTimeZone.TimeZoneLookup.GetTimeZone(latitude, longitude).Result;
-        Console.WriteLine($"Timezone ID for Coordinates: {tzIana}");
-        
-        // Convert the IANA timezone ID to TimeZoneInfo to perform time conversion
-        var timeZoneInfo = TZConvert.GetTimeZoneInfo(tzIana);
-        
-        // Convert the UTC sunrise and sunset times to the local time of the specified city
-        sunriseLocal = TimeZoneInfo.ConvertTimeFromUtc(sunriseUtc, timeZoneInfo);
-        sunsetLocal = TimeZoneInfo.ConvertTimeFromUtc(sunsetUtc, timeZoneInfo);
-    }
-    
-    
-
-    
-
-    
-
-    // Log the final local times for debugging purposes
-    Console.WriteLine($"Final Local Sunrise: {sunriseLocal}, Sunset: {sunsetLocal}");
-
-
-    // Return the local sunrise and sunset times as part of the response
-    return new SunriseSunsetResponse
-    {
-        Sunrise = sunriseLocal,
-        Sunset = sunsetLocal
-    };
-}
-
+            // Read and deserialize the JSON response into a SunriseSunsetApiResponse object
+            return await response.Content.ReadFromJsonAsync<SunriseSunsetApiResponse>();
+        }
     }
 }
+
+
+
+
+
+

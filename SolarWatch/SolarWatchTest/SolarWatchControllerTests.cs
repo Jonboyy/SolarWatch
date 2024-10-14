@@ -3,10 +3,13 @@ using SolarWatch.Controllers;
 using SolarWatch.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-
+using NUnit.Framework;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace SolarWatchTest
 {
+    [TestFixture]
     public class SolarWatchControllerTests
     {
         private Mock<IHttpClientFactory> _httpClientFactoryMock;
@@ -18,6 +21,9 @@ namespace SolarWatchTest
         {
             _httpClientFactoryMock = new Mock<IHttpClientFactory>();
             _configurationMock = new Mock<IConfiguration>();
+
+            _configurationMock.Setup(config => config["GeocodingAPI:BaseUrl"])
+                .Returns("https://api.openweathermap.org/geo/1.0/direct");
             _configurationMock.Setup(config => config["SunriseSunsetAPI:BaseUrl"])
                 .Returns("https://api.sunrise-sunset.org/json");
 
@@ -28,9 +34,9 @@ namespace SolarWatchTest
         public async Task GetSunriseSunset_ValidCityAndDate_ReturnsOkResult()
         {
             // Arrange
-            var date = new DateTime(2024, 10, 14);
+            var date = "2024-10-14";
 
-            // Mock the Geocoding API response for the GeocodingClient
+            // Setup mocked Geocoding API response
             var geocodingResponse = "[{\"name\": \"Budapest\", \"lat\": 47.4979, \"lon\": 19.0402, \"country\": \"HU\"}]";
             var geocodingHttpClient = new HttpClient(new MockHttpMessageHandler(geocodingResponse))
             {
@@ -39,7 +45,7 @@ namespace SolarWatchTest
             _httpClientFactoryMock.Setup(factory => factory.CreateClient("GeocodingClient"))
                 .Returns(geocodingHttpClient);
 
-            // Mock the Sunrise-Sunset API response for the SunsetClient
+            // Setup mocked Sunrise-Sunset API response
             var sunsetResponse = "{\"results\": { \"sunrise\": \"2024-10-14T04:59:48+00:00\", \"sunset\": \"2024-10-14T15:59:58+00:00\"}, \"status\": \"OK\"}";
             var sunsetHttpClient = new HttpClient(new MockHttpMessageHandler(sunsetResponse))
             {
@@ -50,18 +56,24 @@ namespace SolarWatchTest
 
             // Act
             var result = await _controller.GetSunriseSunset("Budapest", date) as OkObjectResult;
-            var response = result?.Value as SunriseSunsetResponse;
 
             // Assert
-            
+            Assert.That(result, Is.Not.Null, "Expected OkObjectResult, but got null.");
+
+            // Cast result.Value to SunriseSunsetResult
+            var response = result.Value as SunriseSunsetResult;
+
             Assert.Multiple(() =>
             {
-                Assert.That(result, Is.Not.Null);
-                Assert.That(result?.StatusCode, Is.EqualTo(200));
-                Assert.That(response, Is.Not.Null);
+                Assert.That(response, Is.Not.Null, "Expected response data, but got null.");
+                Assert.That(response.Sunrise, Is.EqualTo("2024-10-14T04:59:48+00:00"));
+                Assert.That(response.Sunset, Is.EqualTo("2024-10-14T15:59:58+00:00"));
             });
         }
-
-
     }
 }
+
+
+
+
+

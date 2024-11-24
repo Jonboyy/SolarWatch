@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using SolarWatch.Services;
 
 namespace SolarWatch;
 
@@ -16,6 +17,11 @@ public class Program
         // Add services to the container.
 
         builder.Services.AddControllers();
+
+        builder.Services.AddHttpClient();
+        builder.Services.AddTransient<IGeocodingService, OpenWeatherGeocodingService>();
+        builder.Services.AddTransient<ISunriseSunsetService, SunriseSunsetApiService>();
+        
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
@@ -24,6 +30,7 @@ public class Program
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
+            app.UseDeveloperExceptionPage();
             app.UseSwagger();
             app.UseSwaggerUI();
         }

@@ -1,0 +1,21 @@
+# Ignore build outputs
+[Bb]in/
+[Oo]bj/
+*.exe
+*.dll
+
+# Rider files
+.idea/
+*.sln.iml
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Packages
+*.nupkg

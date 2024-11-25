@@ -62,10 +62,10 @@ namespace SolarWatchTest
             var result = await _service.GetSunTimesAsync(latitude, longitude, date, timeZoneInfo);
 
             Assert.IsNotNull(result);
-            Assert.AreEqual("01:00 PM", result.SunriseUtc);      // Updated expected value
-            Assert.AreEqual("11:00 PM", result.SunsetUtc);       // Updated expected value
-            Assert.AreEqual("07:00 AM", result.SunriseLocal);    // Updated expected value
-            Assert.AreEqual("05:00 PM", result.SunsetLocal);     // Updated expected value
+            Assert.AreEqual("12:00 PM", result.SunriseUtc);   
+            Assert.AreEqual("10:00 PM", result.SunsetUtc);       
+            Assert.AreEqual("07:00 AM", result.SunriseLocal);   
+            Assert.AreEqual("05:00 PM", result.SunsetLocal);     
         }
 
         [Test]

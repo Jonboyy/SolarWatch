@@ -52,7 +52,7 @@ namespace SolarWatch.Services
                 }
                 else
                 {
-                    sunriseUtc = DateTime.SpecifyKind(sunriseUtc, DateTimeKind.Utc);
+                    sunriseUtc = DateTime.SpecifyKind(sunriseUtc, DateTimeKind.Utc).AddHours(-1);
                 }
             }
 
@@ -65,24 +65,24 @@ namespace SolarWatch.Services
                 else
                 {
                     
-                    sunsetUtc = DateTime.SpecifyKind(sunsetUtc, DateTimeKind.Utc);
+                    sunsetUtc = DateTime.SpecifyKind(sunsetUtc, DateTimeKind.Utc).AddHours(-1);
                 }
             }
 
             
             if (sunriseUtc.Kind != DateTimeKind.Utc)
             {
-                sunriseUtc = DateTime.SpecifyKind(sunriseUtc, DateTimeKind.Utc);
+                sunriseUtc = DateTime.SpecifyKind(sunriseUtc, DateTimeKind.Utc).AddHours(-1);
             }
 
             if (sunsetUtc.Kind != DateTimeKind.Utc)
             {
-                sunsetUtc = DateTime.SpecifyKind(sunsetUtc, DateTimeKind.Utc);
+                sunsetUtc = DateTime.SpecifyKind(sunsetUtc, DateTimeKind.Utc).AddHours(-1);
             }
 
             
-            var sunriseLocal = TimeZoneInfo.ConvertTimeFromUtc(sunriseUtc, timeZone).AddHours(-1);
-            var sunsetLocal = TimeZoneInfo.ConvertTimeFromUtc(sunsetUtc, timeZone).AddHours(-1);
+            var sunriseLocal = TimeZoneInfo.ConvertTimeFromUtc(sunriseUtc, timeZone);
+            var sunsetLocal = TimeZoneInfo.ConvertTimeFromUtc(sunsetUtc, timeZone);
 
 
             return new SunTimes

@@ -1,10 +1,9 @@
 using Moq;
 using NUnit.Framework;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json.Linq;
 using SolarWatch.Controllers;
+using SolarWatch.Models;
 using SolarWatch.Services;
-using SolarWatchTest.Models;
 
 namespace SolarWatchTest
 {
@@ -26,62 +25,101 @@ namespace SolarWatchTest
         [Test]
         public void GetSunTimes_MissingCity_ReturnsBadRequest()
         {
-            var result = _controller.GetSunTimes(null);
+            var request = new SunTimesRequest
+            {
+                City = null
+            };
+
+            var result = _controller.GetSunTimes(request);
 
             Assert.IsInstanceOf<BadRequestObjectResult>(result);
             var badRequest = result as BadRequestObjectResult;
-            Assert.That(badRequest!.Value.ToString(), Does.Contain("The 'city' parameter is required"));
+            Assert.IsNotNull(badRequest);
+
+            var errorResponse = badRequest.Value as ErrorResponse;
+            Assert.IsNotNull(errorResponse);
+
+            Assert.AreEqual("Missing parameter", errorResponse.Error);
+            Assert.AreEqual("The 'city' parameter is required.", errorResponse.Details);
         }
 
         [Test]
         public void GetSunTimes_ValidCity_ReturnsSunTimes()
         {
-            var city = "New York";
-            var latitude = 40.7128;
-            var longitude = -74.0060;
-            var date = "2024-11-25";
-            var sunTimes = ("06:00 AM", "06:00 PM", "07:00 AM", "07:00 PM");
+            var request = new SunTimesRequest
+            {
+                City = "New York",
+                Date = new DateTime(2024, 11, 25),
+                Timezone = "local"
+            };
+
+            var geocodingData = new GeocodingData
+            {
+                Latitude = 40.7128,
+                Longitude = -74.0060
+            };
+
+            var sunTimes = new SunTimes
+            {
+                SunriseUtc = "12:00 PM",
+                SunsetUtc = "10:00 PM",
+                SunriseLocal = "07:00 AM",
+                SunsetLocal = "05:00 PM"
+            };
 
             _geocodingServiceMock
-                .Setup(service => service.GetCoordinates(city))
-                .Returns((latitude, longitude));
+                .Setup(service => service.GetCoordinates(request.City))
+                .Returns(geocodingData);
 
             _sunriseSunsetServiceMock
-                .Setup(service => service.GetSunTimes(latitude, longitude, It.IsAny<DateTime>()))
+                .Setup(service => service.GetSunTimes(geocodingData.Latitude, geocodingData.Longitude, request.Date))
                 .Returns(sunTimes);
 
-            var result = _controller.GetSunTimes(city, date);
+            var result = _controller.GetSunTimes(request);
 
-            Assert.IsNotNull(result, "Expected non-null result but got null.");
-            Assert.IsInstanceOf<OkObjectResult>(result, "Expected result to be of type OkObjectResult.");
+            Assert.IsInstanceOf<OkObjectResult>(result);
+            var okResult = result as OkObjectResult;
+            Assert.IsNotNull(okResult);
 
-            var okResult = (OkObjectResult)result;
-            Assert.IsNotNull(okResult.Value, "Expected non-null Value in OkObjectResult but got null.");
+            var response = okResult.Value as SunTimesResponse;
+            Assert.IsNotNull(response);
 
-            var response = JObject.FromObject(okResult.Value);
-            Assert.AreEqual(city, response["city"].ToString());
-            Assert.AreEqual("2024-11-25", response["date"].ToString());
-            Assert.AreEqual("07:00 AM", response["sunrise"].ToString());
-            Assert.AreEqual("07:00 PM", response["sunset"].ToString());
+            Assert.AreEqual(request.City, response.City);
+            Assert.AreEqual(request.Date.ToString("yyyy-MM-dd"), response.Date);
+            Assert.AreEqual(request.Timezone, response.Timezone);
+            Assert.AreEqual(sunTimes.SunriseLocal, response.Sunrise);
+            Assert.AreEqual(sunTimes.SunsetLocal, response.Sunset);
         }
-
-
-
-
-
 
         [Test]
         public void GetSunTimes_InvalidCity_ReturnsInternalServerError()
         {
-            _geocodingServiceMock.Setup(service => service.GetCoordinates(It.IsAny<string>()))
+            var request = new SunTimesRequest
+            {
+                City = "InvalidCity",
+                Date = new DateTime(2024, 11, 25),
+                Timezone = "local"
+            };
+
+            _geocodingServiceMock
+                .Setup(service => service.GetCoordinates(request.City))
                 .Throws(new Exception("City not found"));
 
-            var result = _controller.GetSunTimes("InvalidCity");
+            var result = _controller.GetSunTimes(request);
 
             Assert.IsInstanceOf<ObjectResult>(result);
             var serverError = result as ObjectResult;
-            Assert.AreEqual(500, serverError!.StatusCode);
+            Assert.IsNotNull(serverError);
+
+            Assert.AreEqual(500, serverError.StatusCode);
+
+            var errorResponse = serverError.Value as ErrorResponse;
+            Assert.IsNotNull(errorResponse);
+
+            Assert.AreEqual("Internal Server Error", errorResponse.Error);
+            Assert.AreEqual("City not found", errorResponse.Details);
         }
     }
 }
+
 

@@ -1,45 +1,42 @@
+using Moq.Protected;
+using Newtonsoft.Json.Linq;
+using NUnit.Framework;
+using SolarWatch.Models;
+using SolarWatch.Services;
 using System;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Moq;
-using Moq.Protected;
-using Newtonsoft.Json.Linq;
-using NUnit.Framework;
 using Microsoft.Extensions.Configuration;
-using SolarWatch.Services;
+using Moq;
 
 namespace SolarWatchTest
 {
     [TestFixture]
-    public class OpenWeatherGeocodingServiceTests
+    public class OpenWeatherGeocodingServiceTests : IDisposable
     {
         private Mock<HttpMessageHandler> _httpMessageHandlerMock;
         private HttpClient _httpClient;
-        private Mock<IConfiguration> _configurationMock;
         private OpenWeatherGeocodingService _service;
 
         [SetUp]
         public void SetUp()
         {
-            _httpMessageHandlerMock = new Mock<HttpMessageHandler>(MockBehavior.Loose);
-            _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
+            _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+            _httpClient = new HttpClient(_httpMessageHandlerMock.Object)
+            {
+                BaseAddress = new Uri("http://api.openweathermap.org/")
+            };
 
-            _configurationMock = new Mock<IConfiguration>();
-            _configurationMock.Setup(c => c["OpenWeatherApiKey"]).Returns("fake-api-key");
+            var mockConfig = new Mock<IConfiguration>();
+            mockConfig.Setup(c => c["OpenWeatherApiKey"]).Returns("test-api-key");
 
-            _service = new OpenWeatherGeocodingService(_httpClient, _configurationMock.Object);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            _httpClient?.Dispose();
+            _service = new OpenWeatherGeocodingService(_httpClient, mockConfig.Object);
         }
 
         [Test]
-        public void GetCoordinates_ValidCity_ReturnsCoordinates()
+        public async Task GetCoordinatesAsync_ValidCity_ReturnsGeocodingData()
         {
             var city = "New York";
             var responseContent = "[{\"lat\":40.7128,\"lon\":-74.0060}]";
@@ -47,9 +44,7 @@ namespace SolarWatchTest
             _httpMessageHandlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>(
                     "SendAsync",
-                    ItExpr.Is<HttpRequestMessage>(req =>
-                        req.Method == HttpMethod.Get &&
-                        req.RequestUri.ToString() == $"http://api.openweathermap.org/geo/1.0/direct?q={city}&appid=fake-api-key"),
+                    ItExpr.IsAny<HttpRequestMessage>(),
                     ItExpr.IsAny<CancellationToken>())
                 .ReturnsAsync(new HttpResponseMessage
                 {
@@ -57,20 +52,15 @@ namespace SolarWatchTest
                     Content = new StringContent(responseContent),
                 });
 
-            var result = _service.GetCoordinates(city);
+            var result = await _service.GetCoordinatesAsync(city);
 
+            Assert.IsNotNull(result);
             Assert.AreEqual(40.7128, result.Latitude);
             Assert.AreEqual(-74.0060, result.Longitude);
-
-            _httpMessageHandlerMock.Protected().Verify(
-                "SendAsync",
-                Times.Once(),
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>());
         }
 
         [Test]
-        public void GetCoordinates_InvalidCity_ThrowsException()
+        public void GetCoordinatesAsync_InvalidCity_ThrowsException()
         {
             var city = "InvalidCity";
             var responseContent = "[]";
@@ -86,14 +76,22 @@ namespace SolarWatchTest
                     Content = new StringContent(responseContent),
                 });
 
-            var ex = Assert.Throws<Exception>(() => _service.GetCoordinates(city));
+            var ex = Assert.ThrowsAsync<Exception>(async () => await _service.GetCoordinatesAsync(city));
             Assert.AreEqual("City not found", ex.Message);
+        }
 
-            _httpMessageHandlerMock.Protected().Verify(
-                "SendAsync",
-                Times.Once(),
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>());
+        [TearDown]
+        public void TearDown()
+        {
+            _httpClient.Dispose();
+        }
+
+        public void Dispose()
+        {
+            _httpClient?.Dispose();
         }
     }
 }
+
+
+

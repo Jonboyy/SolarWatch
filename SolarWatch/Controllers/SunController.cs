@@ -1,67 +1,63 @@
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json.Linq;
-using System.Net.Http;
+using SolarWatch.Models;
 using SolarWatch.Services;
 
-namespace SolarWatch.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class SunController : ControllerBase
+namespace SolarWatch.Controllers
 {
-    private readonly IGeocodingService _geocodingService;
-    private readonly ISunriseSunsetService _sunriseSunsetService;
-
-    public SunController(IGeocodingService geocodingService, ISunriseSunsetService sunriseSunsetService)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class SunController : ControllerBase
     {
-        _geocodingService = geocodingService;
-        _sunriseSunsetService = sunriseSunsetService;
-    }
+        private readonly IGeocodingService _geocodingService;
+        private readonly ISunriseSunsetService _sunriseSunsetService;
 
-    [HttpGet]
-    public IActionResult GetSunTimes([FromQuery] string city, [FromQuery] string date = null, [FromQuery] string timezone = "local")
-    {
-        if (string.IsNullOrEmpty(city))
+        public SunController(IGeocodingService geocodingService, ISunriseSunsetService sunriseSunsetService)
         {
-            return BadRequest(new
-            {
-                error = "Missing parameter",
-                details = "The 'city' parameter is required."
-            });
+            _geocodingService = geocodingService;
+            _sunriseSunsetService = sunriseSunsetService;
         }
 
-        try
+        [HttpGet]
+        public IActionResult GetSunTimes([FromQuery] SunTimesRequest request)
         {
-            var (latitude, longitude) = _geocodingService.GetCoordinates(city);
-            var targetDate = date ?? DateTime.UtcNow.ToString("yyyy-MM-dd");
-
-            if (!DateTime.TryParse(targetDate, out DateTime parsedDate))
+            if (string.IsNullOrEmpty(request.City))
             {
-                return BadRequest(new
+                return BadRequest(new ErrorResponse
                 {
-                    error = "Invalid date format",
-                    details = "Please provide the date in YYYY-MM-DD format."
+                    Error = "Missing parameter",
+                    Details = "The 'city' parameter is required."
                 });
             }
 
-            var sunTimes = _sunriseSunsetService.GetSunTimes(latitude, longitude, parsedDate);
-            return Ok(new
+            try
             {
-                city,
-                date = targetDate,
-                timezone,
-                sunrise = timezone == "utc" ? sunTimes.SunriseUtc : sunTimes.SunriseLocal,
-                sunset = timezone == "utc" ? sunTimes.SunsetUtc : sunTimes.SunsetLocal
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
+                var geocodingData = _geocodingService.GetCoordinates(request.City);
+
+                var targetDate = request.Date == default ? DateTime.UtcNow : request.Date;
+
+                var sunTimes = _sunriseSunsetService.GetSunTimes(geocodingData.Latitude, geocodingData.Longitude, targetDate);
+
+                var response = new SunTimesResponse
+                {
+                    City = request.City,
+                    Date = targetDate.ToString("yyyy-MM-dd"),
+                    Timezone = request.Timezone,
+                    Sunrise = request.Timezone.ToLower() == "utc" ? sunTimes.SunriseUtc : sunTimes.SunriseLocal,
+                    Sunset = request.Timezone.ToLower() == "utc" ? sunTimes.SunsetUtc : sunTimes.SunsetLocal
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
             {
-                error = "Internal Server Error",
-                details = ex.Message
-            });
+                return StatusCode(500, new ErrorResponse
+                {
+                    Error = "Internal Server Error",
+                    Details = ex.Message
+                });
+            }
         }
     }
 }
+
 

@@ -4,5 +4,5 @@ namespace SolarWatch.Services;
 
 public interface ISunriseSunsetService
 {
-    SunTimes GetSunTimes(double latitude, double longitude, DateTime date);
+    Task<SunTimes> GetSunTimesAsync(double latitude, double longitude, DateTime date);
 }

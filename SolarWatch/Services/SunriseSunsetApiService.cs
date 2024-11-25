@@ -1,38 +1,42 @@
 using Newtonsoft.Json.Linq;
 using SolarWatch.Models;
+using System.Net.Http;
+using System.Threading.Tasks;
 
-namespace SolarWatch.Services;
-
-public class SunriseSunsetApiService : ISunriseSunsetService
+namespace SolarWatch.Services
 {
-    private readonly HttpClient _httpClient;
-    private const string BaseUrl = "https://api.sunrise-sunset.org/json";
-
-    public SunriseSunsetApiService(HttpClient httpClient)
+    public class SunriseSunsetApiService : ISunriseSunsetService
     {
-        _httpClient = httpClient;
-    }
+        private readonly HttpClient _httpClient;
+        private const string BaseUrl = "https://api.sunrise-sunset.org/json";
 
-    public SunTimes GetSunTimes(double latitude, double longitude, DateTime date)
-    {
-        var response = _httpClient.GetStringAsync($"{BaseUrl}?lat={latitude}&lng={longitude}&date={date:yyyy-MM-dd}&formatted=0").Result;
-        var json = JObject.Parse(response);
-
-        if (json["status"].ToString() != "OK")
+        public SunriseSunsetApiService(HttpClient httpClient)
         {
-            throw new Exception("Failed to fetch sunrise/sunset data");
+            _httpClient = httpClient;
         }
 
-        var sunriseUtc = DateTime.Parse(json["results"]["sunrise"].ToString());
-        var sunsetUtc = DateTime.Parse(json["results"]["sunset"].ToString());
-
-        return new SunTimes
+        public async Task<SunTimes> GetSunTimesAsync(double latitude, double longitude, DateTime date)
         {
-            SunriseUtc = sunriseUtc.ToString("hh:mm tt"),
-            SunsetUtc = sunsetUtc.ToString("hh:mm tt"),
-            SunriseLocal = sunriseUtc.ToLocalTime().ToString("hh:mm tt"),
-            SunsetLocal = sunsetUtc.ToLocalTime().ToString("hh:mm tt")
-        };
+            var response = await _httpClient.GetStringAsync($"{BaseUrl}?lat={latitude}&lng={longitude}&date={date:yyyy-MM-dd}&formatted=0");
+            var json = JObject.Parse(response);
+
+            if (json["status"].ToString() != "OK")
+            {
+                throw new Exception("Failed to fetch sunrise/sunset data");
+            }
+
+            var sunriseUtc = DateTime.Parse(json["results"]["sunrise"].ToString());
+            var sunsetUtc = DateTime.Parse(json["results"]["sunset"].ToString());
+
+            return new SunTimes
+            {
+                SunriseUtc = sunriseUtc.ToString("hh:mm tt"),
+                SunsetUtc = sunsetUtc.ToString("hh:mm tt"),
+                SunriseLocal = sunriseUtc.ToLocalTime().ToString("hh:mm tt"),
+                SunsetLocal = sunsetUtc.ToLocalTime().ToString("hh:mm tt")
+            };
+        }
     }
 }
+
 

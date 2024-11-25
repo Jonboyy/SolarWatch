@@ -1,18 +1,19 @@
+using Moq.Protected;
+using Newtonsoft.Json.Linq;
+using NUnit.Framework;
+using SolarWatch.Models;
+using SolarWatch.Services;
 using System;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
-using Moq.Protected;
-using Newtonsoft.Json.Linq;
-using NUnit.Framework;
-using SolarWatch.Services;
 
 namespace SolarWatchTest
 {
     [TestFixture]
-    public class SunriseSunsetApiServiceTests
+    public class SunriseSunsetApiServiceTests : IDisposable
     {
         private Mock<HttpMessageHandler> _httpMessageHandlerMock;
         private HttpClient _httpClient;
@@ -21,26 +22,24 @@ namespace SolarWatchTest
         [SetUp]
         public void SetUp()
         {
-            _httpMessageHandlerMock = new Mock<HttpMessageHandler>(MockBehavior.Loose);
-            _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
+            _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+            _httpClient = new HttpClient(_httpMessageHandlerMock.Object)
+            {
+                BaseAddress = new Uri("https://api.sunrise-sunset.org/")
+            };
+
             _service = new SunriseSunsetApiService(_httpClient);
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            _httpClient?.Dispose();
-        }
-
         [Test]
-        public void GetSunTimes_ValidCoordinates_ReturnsSunTimes()
+        public async Task GetSunTimesAsync_ValidCoordinates_ReturnsSunTimes()
         {
-            // Arrange
+            
             var latitude = 40.7128;
             var longitude = -74.0060;
             var date = new DateTime(2024, 11, 25);
-
-            var responseContent = @"{
+            var responseContent = @"
+    {
         'results': {
             'sunrise': '2024-11-25T12:00:00+00:00',
             'sunset': '2024-11-25T22:00:00+00:00'
@@ -59,29 +58,28 @@ namespace SolarWatchTest
                     Content = new StringContent(responseContent),
                 });
 
-            var result = _service.GetSunTimes(latitude, longitude, date);
+         
+            var result = await _service.GetSunTimesAsync(latitude, longitude, date);
 
-            var sunriseUtc = DateTime.SpecifyKind(DateTime.Parse("2024-11-25T12:00:00+00:00"), DateTimeKind.Utc);
-            var sunsetUtc = DateTime.SpecifyKind(DateTime.Parse("2024-11-25T22:00:00+00:00"), DateTimeKind.Utc);
+            
+            Assert.IsNotNull(result);
+            Assert.AreEqual("12:00 PM", result.SunriseUtc); 
+            Assert.AreEqual("10:00 PM", result.SunsetUtc); 
 
-            var sunriseLocal = sunriseUtc.ToLocalTime();
-            var sunsetLocal = sunsetUtc.ToLocalTime();
-
-            Assert.AreEqual(sunriseUtc.ToString("hh:mm tt"), result.SunriseUtc);
-            Assert.AreEqual(sunsetUtc.ToString("hh:mm tt"), result.SunsetUtc);
-            Assert.AreEqual(sunriseLocal.ToString("hh:mm tt"), result.SunriseLocal);
-            Assert.AreEqual(sunsetLocal.ToString("hh:mm tt"), result.SunsetLocal);
+            
+            Assert.AreEqual("07:00 AM", result.SunriseLocal); 
+            Assert.AreEqual("05:00 PM", result.SunsetLocal); 
         }
 
 
 
         [Test]
-        public void GetSunTimes_InvalidResponse_ThrowsException()
+        public void GetSunTimesAsync_InvalidResponse_ThrowsException()
         {
-            var latitude = 40.7128;
-            var longitude = -74.0060;
+            
+            var latitude = 0.0;
+            var longitude = 0.0;
             var date = new DateTime(2024, 11, 25);
-
             var responseContent = @"{ 'status': 'INVALID_REQUEST' }";
 
             _httpMessageHandlerMock.Protected()
@@ -95,10 +93,26 @@ namespace SolarWatchTest
                     Content = new StringContent(responseContent),
                 });
 
-            var ex = Assert.Throws<AggregateException>(() => _service.GetSunTimes(latitude, longitude, date));
-            Assert.IsInstanceOf<HttpRequestException>(ex.InnerException);
-            Assert.AreEqual("Response status code does not indicate success: 400 (Bad Request).", ex.InnerException.Message);
+           
+            var ex = Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await _service.GetSunTimesAsync(latitude, longitude, date));
+
+            Assert.AreEqual("Response status code does not indicate success: 400 (Bad Request).", ex.Message);
+        }
+
+
+        [TearDown]
+        public void TearDown()
+        {
+            _httpClient.Dispose();
+        }
+
+        public void Dispose()
+        {
+            _httpClient?.Dispose();
         }
     }
 }
+
+
 

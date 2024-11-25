@@ -4,5 +4,5 @@ namespace SolarWatch.Services;
 
 public interface IGeocodingService
 {
-    GeocodingData GetCoordinates(string city);
+    Task<GeocodingData> GetCoordinatesAsync(string city);
 }

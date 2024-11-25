@@ -18,7 +18,7 @@ namespace SolarWatch.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetSunTimes([FromQuery] SunTimesRequest request)
+        public async Task<IActionResult> GetSunTimes([FromQuery] SunTimesRequest request)
         {
             if (string.IsNullOrEmpty(request.City))
             {
@@ -31,11 +31,11 @@ namespace SolarWatch.Controllers
 
             try
             {
-                var geocodingData = _geocodingService.GetCoordinates(request.City);
+                var geocodingData = await _geocodingService.GetCoordinatesAsync(request.City);
 
                 var targetDate = request.Date == default ? DateTime.UtcNow : request.Date;
 
-                var sunTimes = _sunriseSunsetService.GetSunTimes(geocodingData.Latitude, geocodingData.Longitude, targetDate);
+                var sunTimes = await _sunriseSunsetService.GetSunTimesAsync(geocodingData.Latitude, geocodingData.Longitude, targetDate);
 
                 var response = new SunTimesResponse
                 {
@@ -59,5 +59,6 @@ namespace SolarWatch.Controllers
         }
     }
 }
+
 
 

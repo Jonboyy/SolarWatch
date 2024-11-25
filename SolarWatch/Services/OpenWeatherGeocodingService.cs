@@ -1,5 +1,7 @@
 using Newtonsoft.Json.Linq;
 using SolarWatch.Models;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace SolarWatch.Services
 {
@@ -15,9 +17,9 @@ namespace SolarWatch.Services
             _apiKey = config["OpenWeatherApiKey"];
         }
 
-        public GeocodingData GetCoordinates(string city)
+        public async Task<GeocodingData> GetCoordinatesAsync(string city)
         {
-            var response = _httpClient.GetStringAsync($"{BaseUrl}?q={city}&appid={_apiKey}").Result;
+            var response = await _httpClient.GetStringAsync($"{BaseUrl}?q={city}&appid={_apiKey}");
             var json = JArray.Parse(response);
 
             if (json.Count == 0)

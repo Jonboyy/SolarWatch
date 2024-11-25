@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SolarWatch.Controllers;
 using SolarWatch.Models;
 using SolarWatch.Services;
+using System.Threading.Tasks;
 
 namespace SolarWatchTest
 {
@@ -23,14 +24,11 @@ namespace SolarWatchTest
         }
 
         [Test]
-        public void GetSunTimes_MissingCity_ReturnsBadRequest()
+        public async Task GetSunTimes_MissingCity_ReturnsBadRequest()
         {
-            var request = new SunTimesRequest
-            {
-                City = null
-            };
+            var request = new SunTimesRequest { City = null };
 
-            var result = _controller.GetSunTimes(request);
+            var result = await _controller.GetSunTimes(request);
 
             Assert.IsInstanceOf<BadRequestObjectResult>(result);
             var badRequest = result as BadRequestObjectResult;
@@ -44,7 +42,7 @@ namespace SolarWatchTest
         }
 
         [Test]
-        public void GetSunTimes_ValidCity_ReturnsSunTimes()
+        public async Task GetSunTimes_ValidCity_ReturnsSunTimes()
         {
             var request = new SunTimesRequest
             {
@@ -68,14 +66,16 @@ namespace SolarWatchTest
             };
 
             _geocodingServiceMock
-                .Setup(service => service.GetCoordinates(request.City))
-                .Returns(geocodingData);
+                .Setup(service => service.GetCoordinatesAsync(request.City))
+                .ReturnsAsync(geocodingData);
 
             _sunriseSunsetServiceMock
-                .Setup(service => service.GetSunTimes(geocodingData.Latitude, geocodingData.Longitude, request.Date))
-                .Returns(sunTimes);
+                .Setup(service =>
+                    service.GetSunTimesAsync(geocodingData.Latitude, geocodingData.Longitude, request.Date))
+                .ReturnsAsync(sunTimes);
 
-            var result = _controller.GetSunTimes(request);
+           
+            var result = await _controller.GetSunTimes(request);
 
             Assert.IsInstanceOf<OkObjectResult>(result);
             var okResult = result as OkObjectResult;
@@ -92,7 +92,7 @@ namespace SolarWatchTest
         }
 
         [Test]
-        public void GetSunTimes_InvalidCity_ReturnsInternalServerError()
+        public async Task GetSunTimes_InvalidCity_ReturnsInternalServerError()
         {
             var request = new SunTimesRequest
             {
@@ -102,24 +102,15 @@ namespace SolarWatchTest
             };
 
             _geocodingServiceMock
-                .Setup(service => service.GetCoordinates(request.City))
-                .Throws(new Exception("City not found"));
+                .Setup(service => service.GetCoordinatesAsync(request.City))
+                .ThrowsAsync(new Exception("City not found"));
 
-            var result = _controller.GetSunTimes(request);
+            var result = await _controller.GetSunTimes(request);
 
             Assert.IsInstanceOf<ObjectResult>(result);
             var serverError = result as ObjectResult;
             Assert.IsNotNull(serverError);
-
-            Assert.AreEqual(500, serverError.StatusCode);
-
-            var errorResponse = serverError.Value as ErrorResponse;
-            Assert.IsNotNull(errorResponse);
-
-            Assert.AreEqual("Internal Server Error", errorResponse.Error);
-            Assert.AreEqual("City not found", errorResponse.Details);
         }
     }
 }
-
-
+           

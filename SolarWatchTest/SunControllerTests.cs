@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SolarWatch.Controllers;
 using SolarWatch.Models;
 using SolarWatch.Services;
+using System;
 using System.Threading.Tasks;
 
 namespace SolarWatchTest
@@ -13,6 +14,7 @@ namespace SolarWatchTest
     {
         private Mock<IGeocodingService> _geocodingServiceMock;
         private Mock<ISunriseSunsetService> _sunriseSunsetServiceMock;
+        private Mock<ITimeZoneService> _timeZoneServiceMock;
         private SunController _controller;
 
         [SetUp]
@@ -20,7 +22,8 @@ namespace SolarWatchTest
         {
             _geocodingServiceMock = new Mock<IGeocodingService>();
             _sunriseSunsetServiceMock = new Mock<ISunriseSunsetService>();
-            _controller = new SunController(_geocodingServiceMock.Object, _sunriseSunsetServiceMock.Object);
+            _timeZoneServiceMock = new Mock<ITimeZoneService>();
+            _controller = new SunController(_geocodingServiceMock.Object, _sunriseSunsetServiceMock.Object, _timeZoneServiceMock.Object);
         }
 
         [Test]
@@ -57,6 +60,8 @@ namespace SolarWatchTest
                 Longitude = -74.0060
             };
 
+            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
             var sunTimes = new SunTimes
             {
                 SunriseUtc = "12:00 PM",
@@ -69,12 +74,15 @@ namespace SolarWatchTest
                 .Setup(service => service.GetCoordinatesAsync(request.City))
                 .ReturnsAsync(geocodingData);
 
+            _timeZoneServiceMock
+                .Setup(service => service.GetTimeZoneAsync(geocodingData.Latitude, geocodingData.Longitude))
+                .ReturnsAsync(timeZoneInfo);
+
             _sunriseSunsetServiceMock
                 .Setup(service =>
-                    service.GetSunTimesAsync(geocodingData.Latitude, geocodingData.Longitude, request.Date))
+                    service.GetSunTimesAsync(geocodingData.Latitude, geocodingData.Longitude, request.Date, timeZoneInfo))
                 .ReturnsAsync(sunTimes);
 
-           
             var result = await _controller.GetSunTimes(request);
 
             Assert.IsInstanceOf<OkObjectResult>(result);
@@ -110,7 +118,16 @@ namespace SolarWatchTest
             Assert.IsInstanceOf<ObjectResult>(result);
             var serverError = result as ObjectResult;
             Assert.IsNotNull(serverError);
+
+            Assert.AreEqual(500, serverError.StatusCode);
+
+            var errorResponse = serverError.Value as ErrorResponse;
+            Assert.IsNotNull(errorResponse);
+
+            Assert.AreEqual("Internal Server Error", errorResponse.Error);
+            Assert.AreEqual("City not found", errorResponse.Details);
         }
     }
 }
+
            

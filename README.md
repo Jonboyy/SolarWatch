@@ -1,8 +1,8 @@
-#Solar Watch
+# Solar Watch
 
    SolarWatch is an API that provides sunrise and sunset times for a given city on a specified date.
 
-##Installation
+## Installation
 
 1. Clone the repository:
    ```bash
@@ -21,7 +21,7 @@
    dotnet user-secrets set "OpenWeatherApiKey" "your-openweather-api-key"
    dotnet user-secrets set "TimeZoneDbApiKey" "your-timezonedb-api-key"
 
-##Setup Docker
+## Setup Docker
 
 1. Make sure docker is installed.
    
@@ -35,18 +35,18 @@
    ```
 4. The API will be available at http://localhost:5000
 
-##Usage
+## Usage
 
    - Get Sunrise/Sunset times: 
    ```
   GET /api/Sun?City={city}&Date={YYYY-MM-DD}&Timezone={UTC/local}
    ```
-##Testing
+## Testing
    ``
   dotnet test
    ``
    
-##Stopping & Removing the Container
+## Stopping & Removing the Container
 
 1. Stopping the container:
 ```bash

@@ -5,46 +5,42 @@
 ##Installation
 
 1. Clone the repository:
-   ``
+   ```bash
    git clone https://github.com/Jonboyy/SolarWatch.git
-   ``
+   
 2. Navigate to the directory:
-   ``
+   ```bash
    cd SolarWatch
-   ``
+   
 3. Restore dependencies:
-   ``
+   ```bash
    dotnet restore
-   ``
+   
 4. Configure Secrets (API keys):
-
-   1.
-   ``
+   ```bash
    dotnet user-secrets set "OpenWeatherApiKey" "your-openweather-api-key"
-   ``
-   2.
-   ``
    dotnet user-secrets set "TimeZoneDbApiKey" "your-timezonedb-api-key"
-   ``
-6. Setup Docker
 
-   - Make sure docker is installed
-   - Build the docker image:
-   ``
+##Setup Docker
+
+1. Make sure docker is installed.
+   
+2. Build the docker image:
+   ```bash
    docker build -t solarwatch .
-   ``
-   - Run the container:
-   ``
+   ```
+3. Run the container:
+   ```bash
    docker run -d -p 5000:5000 --name solarwatch-container solarwatch
-   ``
-7. The API will be available at http://localhost:5000
+   ```
+4. The API will be available at http://localhost:5000
 
 ##Usage
 
    - Get Sunrise/Sunset times: 
-
+   ```
   GET /api/Sun?City={city}&Date={YYYY-MM-DD}&Timezone={UTC/local}
-
+   ```
 ##Testing
    ``
   dotnet test
@@ -52,12 +48,12 @@
    
 ##Stopping & Removing the Container
 
-   1.
-   ``
+1. Stopping the container:
+```bash
   docker stop solarwatch-container
-   ``
-   2.
-   ``
+```
+2. Removing the container: 
+```bash
   docker rm solarwatch-container
-   ``
+```
 

@@ -56,4 +56,7 @@
 ```bash
   docker rm solarwatch-container
 ```
+![SolarWatch Screenshot](https://github.com/Jonboyy/SolarWatch/blob/main/SolarWatch/docs/Screenshot%202025-02-10%20at%2011.01.11%E2%80%AFAM.png?raw=true)
+
+
 

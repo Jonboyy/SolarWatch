@@ -5,9 +5,9 @@
 ##Installation
 
 1. Clone the repository:
-   
+   ``
    git clone https://github.com/Jonboyy/SolarWatch.git
-
+   ``
 2. Navigate to the directory:
    ``
    cd SolarWatch
@@ -17,9 +17,12 @@
    dotnet restore
    ``
 4. Configure Secrets (API keys):
+
+   1.
    ``
    dotnet user-secrets set "OpenWeatherApiKey" "your-openweather-api-key"
    ``
+   2.
    ``
    dotnet user-secrets set "TimeZoneDbApiKey" "your-timezonedb-api-key"
    ``
@@ -46,11 +49,15 @@
    ``
   dotnet test
    ``
+   
 ##Stopping & Removing the Container
+
+   1.
    ``
   docker stop solarwatch-container
    ``
+   2.
    ``
   docker rm solarwatch-container
-  ``
+   ``
 
